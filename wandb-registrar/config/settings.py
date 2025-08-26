@@ -6,7 +6,6 @@ load_dotenv()
 
 # Mail.tm API配置
 MAIL_TM_API_URL = os.getenv('MAIL_TM_API_URL', 'https://api.mail.tm')
-MAIL_TM_DOMAIN = os.getenv('MAIL_TM_DOMAIN', 'iran.ir')
 
 # 注册后配置
 FULL_NAME = os.getenv('FULL_NAME', 'Zhi Yang')

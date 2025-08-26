@@ -1,6 +1,7 @@
 import requests
 import time
 import logging
+import random
 from config.settings import MAIL_TM_API_URL, DEFAULT_TIMEOUT
 
 class MailTMApiClient:
@@ -11,26 +12,59 @@ class MailTMApiClient:
         self.session = requests.Session()
         self.logger = logging.getLogger(__name__)
     
-    def create_account(self, username, password, domain):
-        """创建临时邮箱账户"""
+    def _get_domains(self, max_retries=3):
+        """获取域名列表，包含重试机制"""
+        for attempt in range(max_retries):
+            try:
+                response = self.session.get(
+                    f"{self.base_url}/domains",
+                    timeout=DEFAULT_TIMEOUT
+                )
+                
+                if response.status_code == 200:
+                    domains = response.json().get('hydra:member', [])
+                    # 过滤出激活的域名
+                    active_domains = [d for d in domains if d.get('isActive')]
+                    return active_domains
+                else:
+                    self.logger.warning(f"获取域名列表失败 (尝试 {attempt + 1}/{max_retries}): {response.status_code} - {response.text}")
+                    
+            except Exception as e:
+                self.logger.warning(f"获取域名列表时发生错误 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
+            
+            # 如果不是最后一次尝试，等待一段时间再重试
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)  # 指数退避
+        
+        self.logger.error("获取域名列表失败，已达到最大重试次数")
+        return None
+    
+    def _get_random_domain(self):
+        """获取一个随机的激活域名"""
+        domains = self._get_domains()
+        if domains is None:
+            return None
+        
+        if not domains:
+            self.logger.error("没有找到可用的激活域名")
+            return None
+        
+        # 随机选择一个域名
+        selected_domain = random.choice(domains)
+        self.logger.info(f"随机选择域名: {selected_domain.get('domain')}")
+        return selected_domain
+    
+    def create_account(self, username, password):
+        """创建临时邮箱账户，使用动态获取的域名"""
         try:
-            # 检查域名是否存在
-            domain_response = self.session.get(
-                f"{self.base_url}/domains?page=1",
-                timeout=DEFAULT_TIMEOUT
-            )
-            
-            domain_id = None
-            if domain_response.status_code == 200:
-                domains = domain_response.json().get('hydra:member', [])
-                for d in domains:
-                    if d.get('domain') == domain and d.get('isActive'):
-                        domain_id = d.get('@id')
-                        break
-            
-            if not domain_id:
-                self.logger.error(f"域名 {domain} 不存在或未激活")
+            # 获取随机域名
+            domain_info = self._get_random_domain()
+            if not domain_info:
+                self.logger.error("无法获取有效的域名")
                 return None
+            
+            domain = domain_info.get('domain')
+            domain_id = domain_info.get('@id')
             
             # 创建账户
             account_data = {

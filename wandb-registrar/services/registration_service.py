@@ -5,7 +5,7 @@ from services.mail_service import MailTMApiClient
 from services.browser_service import BrowserAutomation
 from utils.password_generator import generate_secure_password
 from utils.logger import setup_logger
-from config.settings import MAIL_TM_DOMAIN, DEFAULT_RETRY_ATTEMPTS, FULL_NAME, COMPANY_NAME
+from config.settings import DEFAULT_RETRY_ATTEMPTS, FULL_NAME, COMPANY_NAME
 
 class RegistrationOrchestrator:
     """注册流程协调器"""
@@ -22,14 +22,26 @@ class RegistrationOrchestrator:
                 self.logger.info(f"开始第 {attempt + 1} 次注册尝试")
                 
                 # 生成随机邮箱用户名和密码
-                username = f"wandb_user_{int(time.time())}"
+                min_length = 8  # 随机部分的最小长度
+                max_length = 16 # 随机部分的最大长度
+                import string
+                import random
+                character_pool = string.ascii_letters + string.digits
+                random_len = random.randint(min_length, max_length)
+                random_suffix = ''.join(random.choice(character_pool) for _ in range(random_len))
+                username = f"{random_suffix}"
                 password = generate_secure_password()
-                email = f"{username}@{MAIL_TM_DOMAIN}"
                 
+                # 创建临时邮箱账户（邮箱地址将在create_account中生成）
+                account = self.mail_client.create_account(username, password)
+                
+                if not account:
+                    self.logger.error("创建临时邮箱账户失败")
+                    time.sleep(10)  # 等待10秒
+                    continue
+                
+                email = account.get('address')
                 self.logger.info(f"生成账户信息: {email}")
-                
-                # 创建临时邮箱账户
-                account = self.mail_client.create_account(username, password, MAIL_TM_DOMAIN)
                 if not account:
                     self.logger.error("创建临时邮箱账户失败")
                     time.sleep(10)  # 等待10秒
@@ -63,11 +75,21 @@ class RegistrationOrchestrator:
                 self.logger.info("等待验证邮件...")
                 verification_link = self.mail_client.get_verification_link(email, password)
                 
+                self.logger.info("验证链接:"+verification_link)
+                
                 if not verification_link:
                     self.logger.error("获取验证链接失败")
                     self.browser_service.close_browser()
                     time.sleep(10)  # 等待10秒
                     continue
+                
+                self.browser_service.close_browser()
+                # 启动浏览器
+                if not self.browser_service.start_browser(headless=headless):
+                    self.logger.error("启动浏览器失败")
+                    time.sleep(10)  # 等待10秒
+                    continue
+                
                 
                 # 打开验证链接
                 if not self.browser_service.open_verification_link_in_new_tab(verification_link):
@@ -121,20 +143,55 @@ class RegistrationOrchestrator:
             verification_url (str): 验证链接
         """
         try:
-            # 使用改进的完整注册流程方法
-            # success = self.browser_service.complete_registration_process(email, password, verification_url)
-            # if not success:
-            #     self.logger.error("浏览器服务中的完整注册流程执行失败")
-            #     return False
+            print(email)
+            self.browser_service.page.wait_for_load_state('networkidle')
+
+            # 在输入框中填写email内容和在密码框中输入password内容，输入完成后，点击Log in按钮
+            try:
+                self.logger.info("等待页面加载...")
+                self.browser_service.page.wait_for_load_state('networkidle')
+                
+                # 查找并填写邮箱输入框
+                email_input = self.browser_service.page.locator('input[type="email"]')
+                if email_input.count() > 0:
+                    email_input.fill(email)
+                    self.logger.info(f"已填写邮箱: {email}")
+                else:
+                    self.logger.warning("未找到邮箱输入框")
+                
+                # 查找并填写密码输入框
+                password_input = self.browser_service.page.locator('input[type="password"]')
+                if password_input.count() > 0:
+                    password_input.fill(password)
+                    self.logger.info("已填写密码")
+                else:
+                    self.logger.warning("未找到密码输入框")
+                
+                # 点击Log in按钮
+                login_button = self.browser_service.page.locator('button:has-text("Log in")')
+                if login_button.count() > 0:
+                    login_button.first.click()
+                    self.logger.info("已点击Log in按钮")
+                    self.browser_service.page.wait_for_load_state('networkidle')
+                else:
+                    self.logger.warning("未找到Log in按钮")
             
+            except Exception as e:
+                self.logger.error(f"登录过程中发生错误: {str(e)}")
+                # 即使失败也继续尝试后续步骤
+            
+            time.sleep(5)
             # 填写用户详情
             self._fill_user_details()
+            time.sleep(4)
             
             # 处理组织设置
             self._handle_organization_setup()
+            time.sleep(4)
             
             # 处理产品选择
             self._handle_product_selection()
+            time.sleep(4)
             
             return True
         except Exception as e:
@@ -151,23 +208,27 @@ class RegistrationOrchestrator:
         try:
             # 等待页面加载
             self.browser_service.page.wait_for_load_state('networkidle')
-            
+            time.sleep(4)
             # 填写Full name和Company or Institution
-            full_name_input = self.browser_service.page.locator('input[aria-label="Full name"]')
+            full_name_input = self.browser_service.page.locator('input[data-test="name-input"]')
             if full_name_input.count() > 0:
                 full_name_input.fill(FULL_NAME)
                 self.logger.info(f"已填写Full name: {FULL_NAME}")
             
-            company_input = self.browser_service.page.locator('input[aria-label="Company or Institution"]')
+            company_input = self.browser_service.page.locator('input[aria-describedby="react-select-2-placeholder"]')
             if company_input.count() > 0:
                 company_input.fill(COMPANY_NAME)
+                time.sleep(2)
                 self.logger.info(f"已填写Company or Institution: {COMPANY_NAME}")
-            
+
+            time.sleep(4)
             # 勾选复选框
-            terms_checkbox = self.browser_service.page.locator('input[type="checkbox"]')
-            if terms_checkbox.count() > 0:
-                terms_checkbox.first.click()
-                self.logger.info("已勾选Terms of Service and Privacy Policy")
+            # 获取所有匹配的定位器
+            all_checkboxes = self.browser_service.page.locator('button[role="checkbox"]').all()
+            # 遍历并点击每一个
+            for checkbox in all_checkboxes:
+                checkbox.click()
+            self.logger.info("已勾选Terms of Service and Privacy Policy")
             
             # 点击Continue按钮
             continue_button = self.browser_service.page.locator('button:has-text("Continue")').first
@@ -216,7 +277,7 @@ class RegistrationOrchestrator:
             self.browser_service.page.wait_for_load_state('networkidle')
             
             # 在What do you want to try first?页面点击Weave选项
-            weave_option = self.browser_service.page.locator('button:has-text("Weave")')
+            weave_option = self.browser_service.page.locator('button[value="weave"]')
             if weave_option.count() > 0:
                 weave_option.click()
                 self.logger.info("已点击Weave选项")
@@ -246,28 +307,30 @@ class RegistrationOrchestrator:
             self.browser_service.page.wait_for_load_state('networkidle')
             
             # 等待页面内容加载，使用动态等待替代time.sleep
-            # 等待包含API密钥的元素出现（如code或pre标签）
-            self.browser_service.page.wait_for_selector('code, pre, body', timeout=10000)
+            # 等待包含API密钥的元素出现（使用特定的class选择器）
+            self.browser_service.page.wait_for_selector('.copyable-text.api-key, .copyable-text-content', timeout=10000)
             
             # 提取API密钥
-            # 方法1: 查找包含API密钥的代码块
-            code_elements = self.browser_service.page.locator('code, pre')
-            for i in range(code_elements.count()):
-                element_text = code_elements.nth(i).text_content()
+            # 方法1: 查找包含API密钥的特定元素（基于HTML结构）
+            api_key_element = self.browser_service.page.locator('.copyable-text-content')
+            if api_key_element.count() > 0:
+                element_text = api_key_element.first.text_content()
                 # 匹配wandb API密钥格式（通常为40位以上的字母数字字符）
                 api_key_match = re.search(r'[a-zA-Z0-9_-]{40,}', element_text)
                 if api_key_match:
                     api_key = api_key_match.group(0)
-                    self.logger.info(f"在代码块中找到API密钥: {api_key[:10]}...")
+                    self.logger.info(f"在copyable-text-content元素中找到API密钥: {api_key[:10]}...")
                     return api_key
             
-            # 方法2: 查找页面上的文本内容
-            page_content = self.browser_service.page.text_content('body')
-            if page_content:
-                api_key_match = re.search(r'[a-zA-Z0-9_-]{40,}', page_content)
+            # 方法2: 尝试从copyable-text类元素中提取
+            api_key_element = self.browser_service.page.locator('.copyable-text.api-key')
+            if api_key_element.count() > 0:
+                element_text = api_key_element.first.text_content()
+                # 匹配wandb API密钥格式（通常为40位以上的字母数字字符）
+                api_key_match = re.search(r'[a-zA-Z0-9_-]{40,}', element_text)
                 if api_key_match:
                     api_key = api_key_match.group(0)
-                    self.logger.info(f"在页面文本中找到API密钥: {api_key[:10]}...")
+                    self.logger.info(f"在copyable-text.api-key元素中找到API密钥: {api_key[:10]}...")
                     return api_key
             
             self.logger.warning("未找到API密钥")

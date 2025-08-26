@@ -12,15 +12,25 @@ This is a Python-based automated registration tool for Wandb.ai that uses Playwr
 
 ## Common Commands
 
-### Environment Setup
+### Environment Setup with UV
 ```bash
-pip install -r requirements.txt
+# Create virtual environment
+uv venv
+
+# Install dependencies
+uv pip install -r requirements.txt
+
+# Install Playwright browsers
 playwright install chromium
 ```
 
 ### Running the Application
 ```bash
+# Direct run
 python main.py
+
+# Or use the provided run script (recommended)
+./run.sh
 ```
 
 ### Development
@@ -29,6 +39,14 @@ python main.py
 ```
 
 ## Code Architecture
+
+### UV Environment Setup
+The project now supports UV virtual environment setup for faster dependency management:
+1. UV virtual environment is created with `uv venv`
+2. Dependencies are installed with `uv pip install -r requirements.txt`
+3. A convenient run script (`run.sh`) automates environment activation and program execution
+4. Environment variables are managed through `.env` file
+
 
 ### High-Level Structure
 ```
@@ -71,3 +89,4 @@ wandb-registrar/
 - Configuration is managed through environment variables in `config/settings.py`
 - The project follows a service-oriented architecture with clear separation of concerns
 - Error handling and retries are implemented throughout the registration flow
+- Mail.tm API documentation: https://docs.mail.tm/ - Consult this documentation before making any changes to mail service functionality
