@@ -2,7 +2,7 @@ import requests
 import time
 import logging
 import random
-from config.settings import MAIL_TM_API_URL, DEFAULT_TIMEOUT
+from config.settings import MAIL_TM_API_URL, DEFAULT_TIMEOUT, PROXY_URL, parse_proxy_url
 
 class MailTMApiClient:
     """Mail.tm API客户端"""
@@ -11,6 +11,17 @@ class MailTMApiClient:
         self.base_url = MAIL_TM_API_URL
         self.session = requests.Session()
         self.logger = logging.getLogger(__name__)
+        
+        # 配置代理
+        if PROXY_URL:
+            proxy_config = parse_proxy_url(PROXY_URL)
+            if proxy_config:
+                proxies = {
+                    'http': PROXY_URL,
+                    'https': PROXY_URL
+                }
+                self.session.proxies.update(proxies)
+                self.logger.info(f"已配置代理: {PROXY_URL}")
     
     def _get_domains(self, max_retries=3):
         """获取域名列表，包含重试机制"""

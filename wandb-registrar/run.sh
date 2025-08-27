@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd "$(dirname "$0")"
+
 # Wandb.ai自动注册工具启动脚本
 
 # 检查uv虚拟环境是否存在

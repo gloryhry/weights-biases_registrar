@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from services.registration_service import RegistrationOrchestrator
 from utils.logger import setup_logger
-from config.settings import REGISTRATION_COUNT
+from config.settings import REGISTRATION_COUNT, HEADLESS_MODE
 
 def main():
     """主程序入口"""
@@ -31,7 +31,8 @@ def main():
             
             try:
                 # 执行注册（使用非headless模式以便观察）
-                success = orchestrator.execute_registration(headless=False)
+                print(HEADLESS_MODE)
+                success = orchestrator.execute_registration(headless=HEADLESS_MODE)
                 
                 if success:
                     success_count += 1

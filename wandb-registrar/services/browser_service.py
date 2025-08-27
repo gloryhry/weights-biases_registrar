@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from playwright.sync_api import sync_playwright
-from config.settings import DEFAULT_TIMEOUT
+from config.settings import DEFAULT_TIMEOUT, PROXY_URL, parse_proxy_url
 
 class BrowserAutomation:
     """浏览器自动化控制 - 统一同步实现"""
@@ -29,11 +29,35 @@ class BrowserAutomation:
             self.close_browser()
             
             self.playwright = sync_playwright().start()
+            
+            # 配置浏览器启动参数
+            launch_args = ['--no-sandbox', '--disable-dev-shm-usage']
+            
+            # 配置代理
+            if PROXY_URL:
+                proxy_config = parse_proxy_url(PROXY_URL)
+                if proxy_config:
+                    launch_args.extend([
+                        f"--proxy-server={proxy_config['scheme']}://{proxy_config['hostname']}:{proxy_config['port']}"
+                    ])
+            
             self.browser = self.playwright.chromium.launch(
                 headless=headless,
-                args=['--no-sandbox', '--disable-dev-shm-usage']
+                args=launch_args
             )
-            self.context = self.browser.new_context()
+            
+            # 创建带代理认证的上下文（如果需要）
+            if PROXY_URL and proxy_config and proxy_config['username']:
+                self.context = self.browser.new_context(
+                    proxy={
+                        "server": f"{proxy_config['scheme']}://{proxy_config['hostname']}:{proxy_config['port']}",
+                        "username": proxy_config['username'],
+                        "password": proxy_config['password']
+                    }
+                )
+            else:
+                self.context = self.browser.new_context()
+            
             self.page = self.context.new_page()
             self.logger.info("浏览器启动成功")
             return True
