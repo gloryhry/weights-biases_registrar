@@ -14,3 +14,6 @@ COMPANY_NAME = os.getenv('COMPANY_NAME', 'Linux Do')
 # 默认配置
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
+
+# 注册执行次数配置
+REGISTRATION_COUNT = int(os.getenv('REGISTRATION_COUNT', 1))

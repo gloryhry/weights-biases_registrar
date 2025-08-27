@@ -183,15 +183,14 @@ class RegistrationOrchestrator:
             time.sleep(5)
             # 填写用户详情
             self._fill_user_details()
-            time.sleep(4)
             
             # 处理组织设置
             self._handle_organization_setup()
-            time.sleep(4)
+            # time.sleep(4)
             
             # 处理产品选择
             self._handle_product_selection()
-            time.sleep(4)
+            # time.sleep(4)
             
             return True
         except Exception as e:
@@ -236,8 +235,8 @@ class RegistrationOrchestrator:
                 continue_button.click()
                 self.logger.info("已点击Continue按钮")
             
-            # 等待页面跳转
-            self.browser_service.page.wait_for_load_state('networkidle')
+            # # 等待页面跳转
+            # self.browser_service.page.wait_for_load_state('networkidle')
         except Exception as e:
             self.logger.error(f"填写用户详情时发生错误: {str(e)}")
             # 不抛出异常，继续执行
@@ -250,8 +249,8 @@ class RegistrationOrchestrator:
             return
             
         try:
-            # 等待页面加载
-            self.browser_service.page.wait_for_load_state('networkidle')
+            # # 等待页面加载
+            # self.browser_service.page.wait_for_load_state('networkidle')
             
             # 在Create your organization页面点击Continue按钮
             create_org_continue_button = self.browser_service.page.locator('button:has-text("Continue")').first
@@ -260,7 +259,7 @@ class RegistrationOrchestrator:
                 self.logger.info("已在Create your organization页面点击Continue按钮")
             
             # 等待页面跳转
-            self.browser_service.page.wait_for_load_state('networkidle')
+            # self.browser_service.page.wait_for_load_state('networkidle')
         except Exception as e:
             self.logger.error(f"处理组织设置时发生错误: {str(e)}")
             # 不抛出异常，继续执行
@@ -274,10 +273,12 @@ class RegistrationOrchestrator:
             
         try:
             # 等待页面加载
-            self.browser_service.page.wait_for_load_state('networkidle')
+            # self.browser_service.page.wait_for_load_state('networkidle')
+            time.sleep(4)
+            self.logger.info("开始处理产品选择")
             
             # 在What do you want to try first?页面点击Weave选项
-            weave_option = self.browser_service.page.locator('button[value="weave"]')
+            weave_option = self.browser_service.page.locator('button[value="weave"]') #button[role="checkbox"]
             if weave_option.count() > 0:
                 weave_option.click()
                 self.logger.info("已点击Weave选项")
@@ -289,7 +290,9 @@ class RegistrationOrchestrator:
                     self.logger.info("已在Weave页面点击Continue按钮")
                 
                 # 等待页面跳转
-                self.browser_service.page.wait_for_load_state('networkidle')
+                # self.browser_service.page.wait_for_load_state('networkidle')
+            else:
+                self.logger.info("Can not find button")
         except Exception as e:
             self.logger.error(f"处理产品选择时发生错误: {str(e)}")
             # 不抛出异常，继续执行
@@ -302,41 +305,47 @@ class RegistrationOrchestrator:
             return None
             
         try:
-            # 导航到API密钥页面
-            self.browser_service.page.goto("https://wandb.ai/authorize", timeout=DEFAULT_RETRY_ATTEMPTS * 1000)
-            self.browser_service.page.wait_for_load_state('networkidle')
+            # 直接跳转到API密钥页面
+            time.sleep(10)
+            self.browser_service.page.goto("https://wandb.ai/authorize", timeout=15000)
+            self.logger.info("已跳转到API密钥页面")
             
-            # 等待页面内容加载，使用动态等待替代time.sleep
-            # 等待包含API密钥的元素出现（使用特定的class选择器）
-            self.browser_service.page.wait_for_selector('.copyable-text.api-key, .copyable-text-content', timeout=10000)
+            # 等待页面内容加载，使用data-test属性精确定位
+            self.logger.info("等待API密钥元素加载...")
+            api_key_container = self.browser_service.page.wait_for_selector('[data-test="copyable-API-key"]', timeout=15000)
             
-            # 提取API密钥
-            # 方法1: 查找包含API密钥的特定元素（基于HTML结构）
-            api_key_element = self.browser_service.page.locator('.copyable-text-content')
-            if api_key_element.count() > 0:
-                element_text = api_key_element.first.text_content()
-                # 匹配wandb API密钥格式（通常为40位以上的字母数字字符）
+            if not api_key_container:
+                self.logger.error("未找到data-test='copyable-API-key'的元素")
+                return None
+            
+            # 在找到的容器中查找copyable-text-content元素
+            content_element = api_key_container.query_selector('.copyable-text-content')
+            
+            if content_element:
+                element_text = content_element.text_content()
+                self.logger.info(f"找到API密钥元素，内容: {element_text}")
+                
+                # 提取API密钥（40位以上的字母数字字符）
                 api_key_match = re.search(r'[a-zA-Z0-9_-]{40,}', element_text)
                 if api_key_match:
                     api_key = api_key_match.group(0)
-                    self.logger.info(f"在copyable-text-content元素中找到API密钥: {api_key[:10]}...")
+                    self.logger.info(f"成功提取API密钥: {api_key[:10]}...")
                     return api_key
-            
-            # 方法2: 尝试从copyable-text类元素中提取
-            api_key_element = self.browser_service.page.locator('.copyable-text.api-key')
-            if api_key_element.count() > 0:
-                element_text = api_key_element.first.text_content()
-                # 匹配wandb API密钥格式（通常为40位以上的字母数字字符）
-                api_key_match = re.search(r'[a-zA-Z0-9_-]{40,}', element_text)
-                if api_key_match:
-                    api_key = api_key_match.group(0)
-                    self.logger.info(f"在copyable-text.api-key元素中找到API密钥: {api_key[:10]}...")
-                    return api_key
-            
-            self.logger.warning("未找到API密钥")
-            return None
+                else:
+                    self.logger.warning("文本中未找到有效的API密钥格式")
+                    return None
+            else:
+                self.logger.error("未找到copyable-text-content元素")
+                return None
+                
         except Exception as e:
             self.logger.error(f"提取API密钥时发生错误: {str(e)}")
+            # 记录页面状态以便调试
+            try:
+                page_content = self.browser_service.page.content()
+                self.logger.debug(f"当前页面内容片段: {page_content[:500]}...")
+            except:
+                pass
             return None
     
     def save_account_info(self, email, password, api_key=None, auth_filename='auth.txt', key_filename='key.txt'):

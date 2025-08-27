@@ -39,3 +39,5 @@ wheels/
 # Temporary files
 *.tmp
 *.temp
+auth.txt
+key.txt
