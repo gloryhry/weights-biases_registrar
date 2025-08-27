@@ -35,7 +35,12 @@ python main.py
 
 ### Development
 ```bash
-# No specific linting or testing framework configured yet
+# Run individual test
+python test_workflow.py
+
+# Manual code formatting
+python -m black wandb-registrar/
+python -m isort wandb-registrar/
 ```
 
 ## Code Architecture
@@ -53,25 +58,30 @@ The project now supports UV virtual environment setup for faster dependency mana
 wandb-registrar/
 ├── main.py                 # Application entry point
 ├── requirements.txt        # Python dependencies
+├── run.sh                  # Shell script for automated setup and run
 ├── config/
-│   └── settings.py         # Configuration settings
+│   └── settings.py         # Configuration settings and environment variables
 ├── services/
-│   ├── mail_service.py     # Mail.tm API integration
-│   ├── browser_service.py  # Playwright browser automation
-│   └── registration_service.py # Registration workflow orchestration
+│   ├── mail_service.py     # Mail.tm API integration for temporary email handling
+│   ├── browser_service.py  # Playwright browser automation for web interactions
+│   └── registration_service.py # Registration workflow orchestration and coordination
 ├── utils/
-│   ├── password_generator.py # Secure password generation
-│   └── logger.py           # Logging configuration
-└── logs/
-    └── app.log             # Application logs
+│   ├── password_generator.py # Secure password generation utilities
+│   └── logger.py           # Centralized logging configuration
+├── logs/
+│   └── app.log             # Application logs and debugging output
+├── auth.txt                # Generated account credentials storage
+├── key.txt                 # Wandb AI API keys storage
+└── test_workflow.py        # Test script for verification workflows
 ```
 
 ### Key Components
 
-1. **RegistrationOrchestrator** (`services/registration_service.py`): The main controller that coordinates the entire registration flow, including post-verification steps
-2. **MailTMApiClient** (`services/mail_service.py`): Handles all Mail.tm API interactions for temporary email creation and verification
-3. **BrowserAutomation** (`services/browser_service.py`): Manages Playwright-based browser automation for web interactions
-4. **Password Generation** (`utils/password_generator.py`): Creates secure passwords for new accounts
+1. **RegistrationOrchestrator** (`services/registration_service.py`): The main workflow coordinator managing the complete registration pipeline including account creation, verification, and API key extraction
+2. **MailTMApiClient** (`services/mail_service.py`): RESTful API client for Mail.tm temporary email service with automated email polling and link extraction
+3. **BrowserAutomation** (`services/browser_service.py`): Playwright-based browser management with custom page interactions, form filling, and screenshot handling
+4. **PasswordGenerator** (`utils/password_generator.py`): Cryptographically secure password and username generation utilities
+5. **TestWorkflow** (`test_workflow.py`): Integration testing suite for verifying service connectivity and registration workflows
 
 ### Data Flow
 1. `main.py` initializes the `RegistrationOrchestrator`
@@ -83,10 +93,44 @@ wandb-registrar/
 7. API key is extracted from wandb.ai/authorize page
 8. Credentials and API key are saved to `auth.txt` and `key.txt`
 
+## Technical Specifications
+
+### Environment Requirements
+- **Python**: 3.8+ (tested with 3.11)
+- **Browser**: Chromium-based (Playwright-managed)
+- **OS**: Linux/WSL (primary), Windows (with WSL2), macOS (untested)
+
+### Dependencies
+```
+playwright==1.40.0     # Browser automation
+requests==2.31.0       # HTTP client for API interactions
+python-dotenv==1.0.0   # Environment variable management
+```
+
+### Critical Files
+- **auth.txt**: Stores `username:password` pairs for created accounts
+- **key.txt**: Stores Wandb AI API keys in plain text format
+- **logs/app.log**: Real-time application logs with timestamps
+- **wandb-registrar/signup_page.png**: Screenshots for debugging failed workflows
+
+### Security Considerations
+- Credentials are stored in plain text files locally
+- No external logging or data transmission
+- Temporary email service minimizes email exposure
+- Use disposable email addresses only for registration
+
 ## Development Notes
 
-- All services use a centralized logging system from `utils/logger.py`
-- Configuration is managed through environment variables in `config/settings.py`
-- The project follows a service-oriented architecture with clear separation of concerns
-- Error handling and retries are implemented throughout the registration flow
-- Mail.tm API documentation: https://docs.mail.tm/ - Consult this documentation before making any changes to mail service functionality
+- **WinRM/SSH**: Execute `run.sh` using WSL or Git Bash on Windows
+- **Logs**: Real-time monitoring with `tail -f logs/app.log`
+- **Cleanup**: Generated `auth.txt` and `key.txt` contain sensitive data - delete after use
+- **Privacy**: Configured for minimal external dependencies (only Mail.tm API)
+- **API Limits**: Mail.tm has rate limits - implement delays between requests if processing multiple accounts
+- **Browser**: Chromium instance runs in headless mode with screenshot capture for debugging
+- **Timeouts**: Default timeouts of 30 seconds for most operations, 5 minutes for email waiting
+- **Error Recovery**: Automatic retry mechanisms with exponential backoff
+
+### External Documentation
+- **Mail.tm API**: https://docs.mail.tm/ - Essential for understanding temporary email workflows
+- **Playwright**: https://playwright.dev/python/docs/api/class-page - Browser automation reference
+- **Wandb.ai**: https://wandb.ai/authorize - API key location and account management

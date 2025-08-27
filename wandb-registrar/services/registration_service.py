@@ -150,7 +150,8 @@ class RegistrationOrchestrator:
             try:
                 self.logger.info("等待页面加载...")
                 self.browser_service.page.wait_for_load_state('networkidle')
-                
+                self.browser_service.page.wait_for_selector('input[type="email"]', timeout=30 * 1000)
+
                 # 查找并填写邮箱输入框
                 email_input = self.browser_service.page.locator('input[type="email"]')
                 if email_input.count() > 0:
@@ -207,7 +208,8 @@ class RegistrationOrchestrator:
         try:
             # 等待页面加载
             self.browser_service.page.wait_for_load_state('networkidle')
-            time.sleep(4)
+            # time.sleep(15)
+            self.browser_service.page.wait_for_selector('input[data-test="name-input"]', timeout=30 * 1000)
             # 填写Full name和Company or Institution
             full_name_input = self.browser_service.page.locator('input[data-test="name-input"]')
             if full_name_input.count() > 0:
@@ -217,10 +219,10 @@ class RegistrationOrchestrator:
             company_input = self.browser_service.page.locator('input[aria-describedby="react-select-2-placeholder"]')
             if company_input.count() > 0:
                 company_input.fill(COMPANY_NAME)
-                time.sleep(2)
+                time.sleep(5)
                 self.logger.info(f"已填写Company or Institution: {COMPANY_NAME}")
 
-            time.sleep(4)
+            time.sleep(8)
             # 勾选复选框
             # 获取所有匹配的定位器
             all_checkboxes = self.browser_service.page.locator('button[role="checkbox"]').all()
@@ -274,8 +276,10 @@ class RegistrationOrchestrator:
         try:
             # 等待页面加载
             # self.browser_service.page.wait_for_load_state('networkidle')
+            
             time.sleep(4)
             self.logger.info("开始处理产品选择")
+            self.browser_service.page.wait_for_selector('button[value="weave"]', timeout=30 * 1000)
             
             # 在What do you want to try first?页面点击Weave选项
             weave_option = self.browser_service.page.locator('button[value="weave"]') #button[role="checkbox"]
@@ -307,12 +311,12 @@ class RegistrationOrchestrator:
         try:
             # 直接跳转到API密钥页面
             time.sleep(10)
-            self.browser_service.page.goto("https://wandb.ai/authorize", timeout=15000)
+            self.browser_service.page.goto("https://wandb.ai/authorize", timeout=30 * 1000)
             self.logger.info("已跳转到API密钥页面")
             
             # 等待页面内容加载，使用data-test属性精确定位
             self.logger.info("等待API密钥元素加载...")
-            api_key_container = self.browser_service.page.wait_for_selector('[data-test="copyable-API-key"]', timeout=15000)
+            api_key_container = self.browser_service.page.wait_for_selector('[data-test="copyable-API-key"]', timeout=30 * 1000)
             
             if not api_key_container:
                 self.logger.error("未找到data-test='copyable-API-key'的元素")
