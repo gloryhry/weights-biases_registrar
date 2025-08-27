@@ -2,6 +2,8 @@
 .claude/
 *.claude
 CLAUDE.md
+wandb-registrar/.claude/
+wandb-registrar/*.claude
 
 # Python
 __pycache__/
