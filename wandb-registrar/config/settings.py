@@ -22,6 +22,10 @@ REGISTRATION_COUNT = int(os.getenv('REGISTRATION_COUNT', 1))
 # Headless模式配置
 HEADLESS_MODE = os.getenv('HEADLESS_MODE', 'true').lower() in ('true', '1', 'yes')
 
+# Visual Debug Mode
+VISUAL_DEBUG_ENABLED = os.getenv('VISUAL_DEBUG_ENABLED', 'false').lower() in ('true', '1', 'yes')
+
+
 # 代理配置
 PROXY_URL = os.getenv('PROXY_URL', None)
 

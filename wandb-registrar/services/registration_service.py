@@ -59,12 +59,14 @@ class RegistrationOrchestrator:
                     self.browser_service.close_browser()
                     time.sleep(10)  # 等待10秒
                     continue
+                self.browser_service.take_screenshot_if_needed("after_navigate_to_signup")
                 
                 if not self.browser_service.fill_registration_form(email, password):
                     self.logger.error("填写注册表单失败")
                     self.browser_service.close_browser()
                     time.sleep(10)  # 等待10秒
                     continue
+                self.browser_service.take_screenshot_if_needed("after_fill_registration_form")
                 
                 # 等待注册完成
                 # 使用改进的检查方式
@@ -97,6 +99,7 @@ class RegistrationOrchestrator:
                     self.browser_service.close_browser()
                     time.sleep(10)  # 等待10秒
                     continue
+                self.browser_service.take_screenshot_if_needed("after_open_verification_link")
                 
                 # 完成注册后的步骤
                 if self.complete_registration_process(email, password, verification_link):
@@ -145,6 +148,7 @@ class RegistrationOrchestrator:
         try:
             print(email)
             self.browser_service.page.wait_for_load_state('networkidle')
+            self.browser_service.take_screenshot_if_needed("before_login_attempt")
 
             # 在输入框中填写email内容和在密码框中输入password内容，输入完成后，点击Log in按钮
             try:
@@ -184,13 +188,16 @@ class RegistrationOrchestrator:
             time.sleep(5)
             # 填写用户详情
             self._fill_user_details()
+            self.browser_service.take_screenshot_if_needed("after_fill_user_details")
             
             # 处理组织设置
             self._handle_organization_setup()
+            self.browser_service.take_screenshot_if_needed("after_handle_organization_setup")
             # time.sleep(4)
             
             # 处理产品选择
             self._handle_product_selection()
+            self.browser_service.take_screenshot_if_needed("after_handle_product_selection")
             # time.sleep(4)
             
             return True
@@ -313,6 +320,7 @@ class RegistrationOrchestrator:
             time.sleep(10)
             self.browser_service.page.goto("https://wandb.ai/authorize", timeout=30 * 1000)
             self.logger.info("已跳转到API密钥页面")
+            self.browser_service.take_screenshot_if_needed("api_key_page")
             
             # 等待页面内容加载，使用data-test属性精确定位
             self.logger.info("等待API密钥元素加载...")

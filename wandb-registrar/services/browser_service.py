@@ -1,7 +1,10 @@
 import asyncio
 import logging
+import os
+from datetime import datetime
 from playwright.sync_api import sync_playwright
-from config.settings import DEFAULT_TIMEOUT, PROXY_URL, parse_proxy_url
+from config.settings import DEFAULT_TIMEOUT, PROXY_URL, parse_proxy_url, VISUAL_DEBUG_ENABLED, HEADLESS_MODE
+
 
 class BrowserAutomation:
     """浏览器自动化控制 - 统一同步实现"""
@@ -13,6 +16,9 @@ class BrowserAutomation:
         self.context = None
         self.page = None
         self._event_loop = None
+        self.headless_mode = None
+        self.screenshot_dir = None
+        self.screenshot_counter = 0
     
     def __enter__(self):
         """上下文管理器入口"""
@@ -24,6 +30,14 @@ class BrowserAutomation:
     
     def start_browser(self, headless=True):
         """启动浏览器"""
+        self.headless_mode = headless
+        if VISUAL_DEBUG_ENABLED and self.headless_mode:
+            run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.screenshot_dir = os.path.join("screenshots", f"run_{run_timestamp}")
+            os.makedirs(self.screenshot_dir, exist_ok=True)
+            self.screenshot_counter = 0
+            self.logger.info(f"可视化调试已启用。截图将保存到: {self.screenshot_dir}")
+
         try:
             # 确保之前的所有资源都已正确清理
             self.close_browser()
@@ -322,3 +336,16 @@ class BrowserAutomation:
             self.logger.error("浏览器上下文未初始化")
             return False
         return True
+
+    def take_screenshot_if_needed(self, step_name: str):
+        """如果启用了可视化调试并且在无头模式下，则截取屏幕截图"""
+        if VISUAL_DEBUG_ENABLED and self.headless_mode and self.page and self.screenshot_dir:
+            self.screenshot_counter += 1
+            screenshot_path = os.path.join(
+                self.screenshot_dir, f"{self.screenshot_counter:02d}_{step_name}.png"
+            )
+            try:
+                self.page.screenshot(path=screenshot_path)
+                self.logger.info(f"截图已保存: {screenshot_path}")
+            except Exception as e:
+                self.logger.error(f"保存截图失败: {screenshot_path}, 错误: {e}")

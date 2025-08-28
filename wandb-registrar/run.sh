@@ -19,8 +19,8 @@ source .venv/bin/activate
 playwright install chromium
 
 # 运行主程序
-xvfb-run python main.py
-
+# xvfb-run python main.py
+python main.py
 # 保持终端窗口打开以便查看输出
 if [ "$1" != "--auto-close" ]; then
     echo "按任意键退出..."
