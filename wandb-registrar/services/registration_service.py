@@ -1,18 +1,18 @@
 import time
 import logging
 import re
-from services.mail_service import MailTMApiClient
+from services.tempmailhub_service import TempMailHubClient
 from services.browser_service import BrowserAutomation
 from utils.password_generator import generate_secure_password
 from utils.logger import setup_logger
-from config.settings import DEFAULT_RETRY_ATTEMPTS, FULL_NAME, COMPANY_NAME
+from config.settings import DEFAULT_RETRY_ATTEMPTS, get_random_full_name, get_random_company_name
 
 class RegistrationOrchestrator:
     """注册流程协调器"""
     
     def __init__(self):
         self.logger = setup_logger(__name__)
-        self.mail_client = MailTMApiClient()
+        self.mail_client = TempMailHubClient()
         self.browser_service = BrowserAutomation()
     
     def execute_registration(self, headless=True):
@@ -33,7 +33,7 @@ class RegistrationOrchestrator:
                 password = generate_secure_password()
                 
                 # 创建临时邮箱账户（邮箱地址将在create_account中生成）
-                account = self.mail_client.create_account(username, password)
+                account = self.mail_client.create_account(username, "tempmailplus")
                 
                 if not account:
                     self.logger.error("创建临时邮箱账户失败")
@@ -41,11 +41,8 @@ class RegistrationOrchestrator:
                     continue
                 
                 email = account.get('address')
+                access_token = account.get('accessToken')  # 仅Mail.tm需要
                 self.logger.info(f"生成账户信息: {email}")
-                if not account:
-                    self.logger.error("创建临时邮箱账户失败")
-                    time.sleep(10)  # 等待10秒
-                    continue
                 
                 # 启动浏览器
                 if not self.browser_service.start_browser(headless=headless):
@@ -75,7 +72,7 @@ class RegistrationOrchestrator:
                 
                 # 获取验证链接
                 self.logger.info("等待验证邮件...")
-                verification_link = self.mail_client.get_verification_link(email, password)
+                verification_link = self.mail_client.get_verification_link(email, access_token)
                 
                 self.logger.info("验证链接:"+verification_link)
                 
@@ -217,17 +214,21 @@ class RegistrationOrchestrator:
             self.browser_service.page.wait_for_load_state('networkidle')
             # time.sleep(15)
             self.browser_service.page.wait_for_selector('input[data-test="name-input"]', timeout=30 * 1000)
+            # 生成随机的Full name和Company name
+            random_full_name = get_random_full_name()
+            random_company_name = get_random_company_name()
+            
             # 填写Full name和Company or Institution
             full_name_input = self.browser_service.page.locator('input[data-test="name-input"]')
             if full_name_input.count() > 0:
-                full_name_input.fill(FULL_NAME)
-                self.logger.info(f"已填写Full name: {FULL_NAME}")
+                full_name_input.fill(random_full_name)
+                self.logger.info(f"已填写Full name: {random_full_name}")
             
             company_input = self.browser_service.page.locator('input[aria-describedby="react-select-2-placeholder"]')
             if company_input.count() > 0:
-                company_input.fill(COMPANY_NAME)
+                company_input.fill(random_company_name)
                 time.sleep(5)
-                self.logger.info(f"已填写Company or Institution: {COMPANY_NAME}")
+                self.logger.info(f"已填写Company or Institution: {random_company_name}")
 
             time.sleep(8)
             # 勾选复选框

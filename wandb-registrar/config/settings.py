@@ -5,12 +5,23 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
-# Mail.tm API配置
+# TempMailHub API配置
+TEMPMAILHUB_API_URL = os.getenv('TEMPMAILHUB_API_URL', 'https://tempmailhub.xjtuglory.workers.dev')
+TEMPMAILHUB_API_KEY = os.getenv('TEMPMAILHUB_API_KEY', '')
+
+# Mail.tm API配置（已弃用）
 MAIL_TM_API_URL = os.getenv('MAIL_TM_API_URL', 'https://api.mail.tm')
 
-# 注册后配置
-FULL_NAME = os.getenv('FULL_NAME', 'Zhi Yang')
-COMPANY_NAME = os.getenv('COMPANY_NAME', 'Linux Do')
+# 注册后配置 - 使用动态生成的随机名称
+def get_random_full_name():
+    """获取随机生成的全名"""
+    from utils.random_generator import generate_random_string
+    return generate_random_string(4, 10)
+
+def get_random_company_name():
+    """获取随机生成的公司名"""
+    from utils.random_generator import generate_random_string
+    return generate_random_string(4, 10)
 
 # 默认配置
 DEFAULT_TIMEOUT = 30
